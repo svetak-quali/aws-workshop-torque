@@ -1,0 +1,144 @@
+name: CI
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron:  '30 1 * * *'
+
+jobs:     
+        
+  test-promotions-manager-all-aws-dev:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Start Torque Sandbox
+      id: start-sandbox
+      uses: QualiTorque/torque-start-sb-action@v0.0.3
+      with:
+        space: AWS-Workshop
+        blueprint_name: promotions-manager-all-aws-dev
+        torque_token: ${{ secrets.TORQUE_TOKEN }}
+        duration: 45
+        timeout: 30
+        artifacts: 'mongodb=artifacts/test-data/test-data-db.tar,promotions-manager-ui=artifacts/latest/promotions-manager-ui.master.tar.gz,promotions-manager-api=artifacts/latest/promotions-manager-api.master.tar.gz'
+        inputs: 'PORT=3000,API_PORT=3001,AWS_INSTANCE_TYPE=m5.large,RELEASE_NUMBER=none,API_BUILD_NUMBER=none'
+    
+    - name: Testing
+      id: test-app
+      run: |
+        echo "Running tests against sandbox with id: ${{ steps.start-sandbox.outputs.sandbox_id }}"
+        readarray -t quicklinks <<< "$(jq '. | .["promotions-manager-ui"][]' <<< ' ${{ steps.start-sandbox.outputs.sandbox_shortcuts }}')"
+        for quicklink in ${quicklinks[@]}; do
+            echo "Do something with this ${quicklink}."
+        done
+    - name: Stop sandbox
+      uses: QualiTorque/torque-end-sb-action@v0.0.3
+      with:
+        space: AWS-Workshop
+        sandbox_id: ${{ steps.start-sandbox.outputs.sandbox_id }}
+        torque_token: ${{ secrets.TORQUE_TOKEN }} 
+        
+  test-promotions-manager-all-aws-load:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Start Torque Sandbox
+      id: start-sandbox
+      uses: QualiTorque/torque-start-sb-action@v0.0.3
+      with:
+        space: AWS-Workshop
+        blueprint_name: promotions-manager-all-aws-loadtest
+        torque_token: ${{ secrets.TORQUE_TOKEN }}
+        duration: 45
+        timeout: 30
+        artifacts: 'mongodb=artifacts/test-data/test-data-db.tar,promotions-manager-ui=artifacts/latest/promotions-manager-ui.master.tar.gz,promotions-manager-api=artifacts/latest/promotions-manager-api.master.tar.gz'
+        inputs: 'PORT=3000,API_PORT=3001,AWS_INSTANCE_TYPE=m5.large,RELEASE_NUMBER=none,API_BUILD_NUMBER=none'
+    
+    - name: Testing
+      id: test-app
+      run: |
+        echo "Running tests against sandbox with id: ${{ steps.start-sandbox.outputs.sandbox_id }}"
+        readarray -t quicklinks <<< "$(jq '. | .["promotions-manager-ui"][]' <<< ' ${{ steps.start-sandbox.outputs.sandbox_shortcuts }}')"
+        for quicklink in ${quicklinks[@]}; do
+            echo "Do something with this ${quicklink}."
+        done
+    - name: Stop sandbox
+      uses: QualiTorque/torque-end-sb-action@v0.0.3
+      with:
+        space: AWS-Workshop
+        sandbox_id: ${{ steps.start-sandbox.outputs.sandbox_id }}
+        torque_token: ${{ secrets.TORQUE_TOKEN }} 
+        
+  test-promotions-manager-all-aws-DocumentDB:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Start Torque Sandbox
+      id: start-sandbox
+      uses: QualiTorque/torque-start-sb-action@v0.0.3
+      with:
+        space: AWS-Workshop
+        blueprint_name: promotions-manager-all-aws-DocumentDB
+        torque_token: ${{ secrets.TORQUE_TOKEN }}
+        duration: 45
+        timeout: 30
+        artifacts: 'promotions-manager-ui=artifacts/latest/promotions-manager-ui.master.tar.gz,promotions-manager-api=artifacts/latest/promotions-manager-api.master.tar.gz'
+        inputs: 'PORT=3000,API_PORT=3001,AWS_INSTANCE_TYPE=m5.large,RELEASE_NUMBER=none,API_BUILD_NUMBER=none,DB_USERNAME=adminuser,DB_PASSWORD=Welcome1234567+'
+    
+    - name: Testing
+      id: test-app
+      run: |
+        echo "Running tests against sandbox with id: ${{ steps.start-sandbox.outputs.sandbox_id }}"
+        readarray -t quicklinks <<< "$(jq '. | .["promotions-manager-ui"][]' <<< ' ${{ steps.start-sandbox.outputs.sandbox_shortcuts }}')"
+        for quicklink in ${quicklinks[@]}; do
+            echo "Do something with this ${quicklink}."
+        done
+    - name: Stop sandbox
+      uses: QualiTorque/torque-end-sb-action@v0.0.3
+      with:
+        space: AWS-Workshop
+        sandbox_id: ${{ steps.start-sandbox.outputs.sandbox_id }}
+        torque_token: ${{ secrets.TORQUE_TOKEN }} 
+        
+  test-jenkins:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Start Torque Sandbox
+      id: start-sandbox
+      uses: QualiTorque/torque-start-sb-action@v0.0.3
+      with:
+        space: Ops-Tools
+        blueprint_name: Jenkins
+        torque_token: ${{ secrets.TORQUE_TOKEN }}
+        duration: 45
+        timeout: 30
+        inputs: 'AWS_INSTANCE_TYPE=m5.large,CS_TORQUE_TOKEN=${{ secrets.TORQUE_TOKEN }},SPACE_NAME=AWS-Workshop,JENKINS_ADMIN_PASS=admin,IAM_ROLE=s3role-TorqueJenkinsInstance2Profile-ILQQ5MVRDKYF,BUCKET_NAME=shiras-test-bucket'
+    
+    - name: Testing
+      id: test-app
+      run: |
+        echo "Running tests against sandbox with id: ${{ steps.start-sandbox.outputs.sandbox_id }}"
+        #readarray -t quicklinks <<< "$(jq '. | .["jenkins"]' <<< ' ${{ steps.start-sandbox.outputs.sandbox_shortcuts }}')"
+        #SERVER="${quicklinks[0]}"
+        SERVER="$(jq '. | .["jenkins"]' <<< ' ${{ steps.start-sandbox.outputs.sandbox_shortcuts }} ' | jq '.[0]' -r)"
+        echo $SERVER
+        COOKIEJAR="cookies.txt"
+        CRUMB=$(curl -u "admin:admin" --cookie-jar "$COOKIEJAR" "$SERVER/crumbIssuer/api/xml?xpath=concat(//crumbRequestField,%22:%22,//crumb)")
+        echo "Launching job"
+        curl -X POST -u "admin:admin" --cookie "$COOKIEJAR" -H "$CRUMB" "$SERVER"/job/demo/build
+        echo "Waiting for job to finish"
+        while [ -z "$RES" ]
+        do
+            echo "Checking job status..."
+            RES=$(curl -X GET  -u "admin:admin" --cookie "$COOKIEJAR" -H "$CRUMB" "$SERVER"/job/demo/1/api/json | jq 'select(.result != null)' | jq '.result') 
+            sleep 10
+        done
+        if [ $RES != "\"SUCCESS\"" ]; then
+            echo "Job Demo Failed!"
+            exit 1
+        else
+            echo "Job Demo Succeeded!"
+        fi    
+    - name: Stop sandbox
+      uses: QualiTorque/torque-end-sb-action@v0.0.3
+      with:
+        space: Ops-Tools
+        sandbox_id: ${{ steps.start-sandbox.outputs.sandbox_id }}
+        torque_token: ${{ secrets.TORQUE_TOKEN }}       
