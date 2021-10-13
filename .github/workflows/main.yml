@@ -124,18 +124,25 @@ jobs:
         echo "Launching job"
         curl -X POST -u "admin:admin" --cookie "$COOKIEJAR" -H "$CRUMB" "$SERVER"/job/demo/build
         echo "Waiting for job to finish"
+
         while [ -z "$RES" ]
         do
             echo "Checking job status..."
-            RES=$(curl -X GET  -u "admin:admin" --cookie "$COOKIEJAR" -H "$CRUMB" "$SERVER"/job/demo/1/api/json | jq 'select(.result != null)' | jq '.result') 
-            sleep 10
+            RES=$(curl -X GET  -u "admin:admin" --cookie "$COOKIEJAR" -H "$CRUMB" "$SERVER"/job/demo/5/api/json | jq 'select(.result != null)' | jq '.result') 
+            sleep 60
         done
+
+        echo "Final result : $RES"
+
         if [ $RES != "\"SUCCESS\"" ]; then
             echo "Job Demo Failed!"
+            OUTPUT=$(curl -X GET  -u "admin:admin" --cookie "$COOKIEJAR" -H "$CRUMB" "$SERVER"/job/demo/lastBuild/consoleText)
+            echo $OUTPUT
             exit 1
         else
             echo "Job Demo Succeeded!"
         fi    
+
     - name: Stop sandbox
       uses: QualiTorque/torque-end-sb-action@v0.0.3
       with:
