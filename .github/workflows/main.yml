@@ -128,7 +128,7 @@ jobs:
         while [ -z "$RES" ]
         do
             echo "Checking job status..."
-            RES=$(curl -X GET  -u "admin:admin" --cookie "$COOKIEJAR" -H "$CRUMB" "$SERVER"/job/demo/5/api/json | jq 'select(.result != null)' | jq '.result') 
+            RES=$(curl -X GET  -u "admin:admin" --cookie "$COOKIEJAR" -H "$CRUMB" "$SERVER"/job/demo/1/api/json | jq 'select(.result != null)' | jq '.result') 
             sleep 60
         done
 
