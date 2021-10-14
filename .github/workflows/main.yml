@@ -136,8 +136,7 @@ jobs:
 
         if [ $RES != "\"SUCCESS\"" ]; then
             echo "Job Demo Failed!"
-            OUTPUT=$(curl -X GET  -u "admin:admin" --cookie "$COOKIEJAR" -H "$CRUMB" "$SERVER"/job/demo/lastBuild/consoleText)
-            echo $OUTPUT
+            curl -X GET  -u "admin:admin" --cookie "$COOKIEJAR" -H "$CRUMB" "$SERVER"/job/demo/lastBuild/consoleText
             exit 1
         else
             echo "Job Demo Succeeded!"
